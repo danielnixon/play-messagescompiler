@@ -21,6 +21,7 @@
 package com.tegonal.resourceparser.generator
 
 import com.tegonal.resourceparser.parser._
+import sbt.File
 
 object ResourceToScalaGenerator {
 
@@ -32,11 +33,11 @@ object ResourceToScalaGenerator {
    * @param objectName desired object name of the generated Scala `object` holding the implicits.
    * @return generated Scala code.
    */
-  def generateSource(input: String, packageName: String = "com.tegonal.resourceparser", objectName: String = "ResourceBundleImplicits"): Option[String] = {
-    ResourceParser.parse(input) map { parsed =>
+  def generateSource(input: String, srcFile: Option[File], packageName: String = "com.tegonal.resourceparser", objectName: String = "ResourceBundleImplicits"): Either[xsbti.Problem, String] = {
+    ResourceParser.parse(input, srcFile).right map { parsed =>
       s"""${open(packageName, objectName)}
          |${generate(ResourceBundleTree.create(parsed))}
-         |${close}""".stripMargin
+         |$close""".stripMargin
     }
   }
 
@@ -46,15 +47,15 @@ object ResourceToScalaGenerator {
     case ResourceNode(path, children, isProperty, args) => createNodeCode(path, children, isProperty, args)
   }
 
-  def createNodeCode(path: Seq[String], children: List[ResourceNode], isProperty: Boolean, args: List[Arg]) = {
+  def createNodeCode(path: Seq[String], children: List[ResourceNode], isProperty: Boolean, args: List[Arg]): String = {
     s"""protected case object __${path.map { _.capitalize }.mkString} extends PathElement("${path.last}")${if (isProperty) " with ResourcePath" else ""} {
-       |  ${if (isProperty) "def pathElements = " + path.zipWithIndex.map { case (p, i) => "__" + (0 to i).toList.map(path(_).capitalize).mkString }.mkString(" :: ") + " :: Nil" else ""}
-       |  ${children.map { c => "def " + escapeReservedWord(c.path.last) + argumentList(args) + " = __" + c.path.map { _.capitalize }.mkString + parameterList(args) }.mkString("\n\n  ")}
-       |  ${if (!args.isEmpty && isProperty) "def apply" + argumentList(args) + " = resourceString" + parameterList(args) else ""}
+       |  ${if (isProperty) "def pathElements: Seq[PathElement] = " + path.zipWithIndex.map { case (p, i) => "__" + (0 to i).toList.map(path(_).capitalize).mkString }.mkString(" :: ") + " :: Nil" else ""}
+       |  ${children.map { c => "def " + escapeReservedWord(c.path.last) + argumentList(args) + { if(args.nonEmpty) "(implicit provider: MessagesProvider)" else "" } + " = __" + c.path.map { _.capitalize }.mkString + parameterList(args) }.mkString("\n\n  ")}
+       |  ${if (args.nonEmpty && isProperty) "def apply" + argumentList(args) + "(implicit provider: MessagesProvider) = resourceString" + parameterList(args) else ""}
        |}
        |${
       path match {
-        case p :: Nil => "\ndef " + escapeReservedWord(p) + { if (isProperty) argumentList(args) else "" } + " = __" + p.capitalize + { if (isProperty) parameterList(args) else "" }
+        case p :: Nil => "\ndef " + escapeReservedWord(p) + { if (args.nonEmpty && isProperty) argumentList(args) + "(implicit provider: MessagesProvider)" else "" } + " = __" + p.capitalize + { if (isProperty) parameterList(args) else "" }
         case _ => ""
       }
     }
@@ -68,7 +69,7 @@ object ResourceToScalaGenerator {
   private def parameterList(args: List[Arg]) =
     argumentList(args, "")
 
-  def open(packageName: String, objectName: String) = s"""package $packageName
+  def open(packageName: String, objectName: String): String = s"""package $packageName
                 |
                 |import play.api.i18n._
                 |import scala.language.implicitConversions
@@ -83,15 +84,15 @@ object ResourceToScalaGenerator {
                 |trait ResourcePath {
                 |  def pathElements: Seq[PathElement]
                 |
-                |  def resourceString(args: Any*)(implicit lang: Lang) = Messages(pathElements.map(_.identifier).mkString("."), args: _*)
+                |  def resourceString(args: Any*)(implicit provider: MessagesProvider) = Messages(pathElements.map(_.identifier).mkString("."), args: _*)
                 |
-                |  def msg(args: Any*)(implicit lang: Lang) = resourceString(args)
+                |  def msg(args: Any*)(implicit provider: MessagesProvider) = resourceString(args)
                 |}
                 |
                 |/**
                 | * implicit conversion from resource path to Messages
                 | */
-                |implicit def resourcePath2Messages(resourcePath: ResourcePath)(implicit lang: Lang): String =
+                |implicit def resourcePath2Messages(resourcePath: ResourcePath)(implicit provider: MessagesProvider): String =
                 |  resourcePath.resourceString()
                 |
                 |""".stripMargin

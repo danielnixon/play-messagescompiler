@@ -19,26 +19,25 @@
 *                                                                             *
 \*                                                                           */
 package com.tegonal.play.plugin
-import sbt._
 import java.io.File
+
 import com.tegonal.resourceparser.generator._
-import play.PlayExceptions._
+import play.sbt.PlayExceptions._
 
 object MessagesCompiler {
   def compile(src: File, options: Seq[String]): (String, Option[String], Seq[File]) = {
-    try {
-      val messages = scala.io.Source.fromFile(src).mkString
+    val messages = scala.io.Source.fromFile(src).mkString
 
-      val result = s"""// @SOURCE:${src.getAbsolutePath()}
-                      |// @DATE:${new java.util.Date}
-                      |${ResourceToScalaGenerator.generateSource(messages, "conf", "messages").get}""".stripMargin
-
-      (result, None, Seq(src))
-    } catch {
-      case e: Exception =>
-        e.printStackTrace
-        throw new AssetCompilationException(Some(src), "Internal messages compiler error (see logs)", None, None)
+    val generatedSource = ResourceToScalaGenerator.generateSource(messages, Some(src), "conf", "messages") match {
+      case Left(problem) => throw CompilationException(problem)
+      case Right(source) => source
     }
-  }
 
+    val result =
+      s"""// @SOURCE:${src.getAbsolutePath}
+         |// @DATE:${new java.util.Date}
+         |$generatedSource""".stripMargin
+
+    (result, None, Seq(src))
+  }
 }

@@ -22,37 +22,41 @@ package com.tegonal.play.plugin
 
 import sbt._
 import sbt.Keys._
-import play.PlayImport._
-import PlayKeys._
-//import play.Project._
-import play.PlayExceptions.AssetCompilationException
 import java.io.File
+
 import sbt.ConfigKey.configurationToKey
+import sbt.Def.Initialize
 
 object MessagesCompilerPlugin extends Plugin {
   val id = "play-messagescompiler"
-  val entryPoints = SettingKey[PathFinder](id + "-entry-points")
-  val options = SettingKey[Seq[String]](id + "-options")
+  val entryPoints: SettingKey[PathFinder] = SettingKey[PathFinder](id + "-entry-points")
+  val options: SettingKey[Seq[String]] = SettingKey[Seq[String]](id + "-options")
 
   val messagesWatcher = MessagesFilesWatcher(
-    id,
-    (_ ** "messages"),
-    entryPoints in Compile,
-    { MessagesCompiler.compile _ },
-    options in Compile)
+      id,
+      _ ** "messages",
+      entryPoints in Compile,
+      MessagesCompiler.compile,
+      options in Compile)
 
   override val settings = Seq(
-    entryPoints <<= (confDirectory in Compile)(base => (base ** "messages")),
+    entryPoints := (resourceDirectory in Compile) (base => base ** "messages").value,
     options := Seq.empty[String],
-    sourceGenerators in Compile <+= messagesWatcher)
+    sourceGenerators in Compile += messagesWatcher.taskValue)
 
   def MessagesFilesWatcher(
-    name: String,
-    watch: File => PathFinder,
-    filesSetting: sbt.SettingKey[PathFinder],
-    compile: (File, Seq[String]) => (String, Option[String], Seq[File]),
-    optionsSettings: sbt.SettingKey[Seq[String]]) =
-    (state, confDirectory in Compile, sourceManaged in Compile, cacheDirectory, optionsSettings, filesSetting) map { (state, conf, sourceManaged, cache, options, files) =>
+                            name: String,
+                            watch: File => PathFinder,
+                            filesSetting: sbt.SettingKey[PathFinder],
+                            compile: (File, Seq[String]) => (String, Option[String], Seq[File]),
+                            optionsSettings: sbt.SettingKey[Seq[String]]): Initialize[Task[Seq[File]]] = {
+
+    Def.task {
+      val conf = (resourceDirectory in Compile).value
+      val sourceManagedValue = (sourceManaged in Compile).value
+      val cache = cacheDirectory.value
+      val options = optionsSettings.value
+      val files = filesSetting.value
 
       import java.io._
 
@@ -62,31 +66,26 @@ object MessagesCompilerPlugin extends Plugin {
       val (previousRelation, previousInfo) = Sync.readInfo(cacheFile)(FileInfo.lastModified.format)
 
       if (previousInfo != currentInfos) {
-        lazy val changedFiles: Seq[File] = currentInfos.filter(e => !previousInfo.get(e._1).isDefined || previousInfo(e._1).lastModified < e._2.lastModified).map(_._1).toSeq ++ previousInfo.filter(e => !currentInfos.get(e._1).isDefined).map(_._1).toSeq
+        lazy val changedFiles: Seq[File] = currentInfos.filter(e => previousInfo.get(e._1).isEmpty || previousInfo(e._1).lastModified < e._2.lastModified).keys.toSeq ++ previousInfo.filter(e => currentInfos.get(e._1).isEmpty).keys.toSeq
 
-        val dependencies = previousRelation.filter((original, compiled) => changedFiles.contains(original))._2s
+        val dependencies = previousRelation.filter((original, _) => changedFiles.contains(original))._2s
         dependencies.foreach(IO.delete)
 
         val generated: Seq[(File, java.io.File)] = (files pair relativeTo(Seq(conf))).flatMap {
-          case (sourceFile, name) => {
+          case (sourceFile, name) =>
             if (changedFiles.contains(sourceFile)) {
-              val (debug, min, dependencies) = try {
-                compile(sourceFile, options)
-              } catch {
-                case e: AssetCompilationException => throw play.PlaySourceGenerators.reportCompilationError(state, e)
-              }
+              val (debug, _, dependencies) = compile(sourceFile, options)
 
-              val out = new File(sourceManaged, "conf/" + name + ".scala")
+              val out = new File(sourceManagedValue, "conf/" + name + ".scala")
               IO.write(out, debug)
 
               (dependencies ++ Seq(sourceFile)).toSet[File].map(_ -> out)
             } else {
-              previousRelation.filter((original, compiled) => original == sourceFile)._2s.map(sourceFile -> _)
+              previousRelation.filter((original, _) => original == sourceFile)._2s.map(sourceFile -> _)
             }
-          }
         }
 
-        // write object graph to cache file 
+        // write object graph to cache file
         Sync.writeInfo(cacheFile,
           Relation.empty[File, File] ++ generated,
           currentInfos)(FileInfo.lastModified.format)
@@ -99,5 +98,5 @@ object MessagesCompilerPlugin extends Plugin {
         previousRelation._2s.toSeq
       }
     }
-
+  }
 }

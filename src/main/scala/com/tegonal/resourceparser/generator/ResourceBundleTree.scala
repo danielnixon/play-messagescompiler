@@ -29,12 +29,11 @@ class ResourceBundleTree {
 
   def create(resourceComponent: ResourceComponent): ResourceNode = {
     resourceComponent match {
-      case ResourceBundle(elements) => {
-        resources.put(Path(Nil), ResourceNodeBuffer(Nil, ListBuffer.empty, false))
+      case ResourceBundle(elements) =>
+        resources.put(Path(Nil), ResourceNodeBuffer(Nil, ListBuffer.empty, isProperty = false))
 
         // ignoring comments so far
-        elements collect { case e: Property => e } map (createProperty(_))
-      }
+        elements collect { case e: Property => e } foreach createProperty
     }
 
     resources(Path(Nil)).toResourceNode
@@ -52,7 +51,7 @@ class ResourceBundleTree {
         existing.args = args
       } getOrElse {
         // create the ResourceNode
-        val created = ResourceNodeBuffer(path.pathElements map (_.name), ListBuffer.empty, true, args)
+        val created = ResourceNodeBuffer(path.pathElements map (_.name), ListBuffer.empty, isProperty = true, args)
         resources.put(path, created)
         // add child to parent
         resources.get(Path(path.pathElements.init)) map { parent =>
@@ -64,15 +63,14 @@ class ResourceBundleTree {
   }
 
   def createHierarchy(path: Path, child: ResourceNodeBuffer, args: List[Arg]): Unit = path match {
-    case Path(pathElements) => {
+    case Path(pathElements) =>
       resources.get(path) map { existing =>
         existing.children += child
       } getOrElse {
-        val created = ResourceNodeBuffer(pathElements map (_.name), ListBuffer.empty += child, false, args)
+        val created = ResourceNodeBuffer(pathElements map (_.name), ListBuffer.empty += child, isProperty = false, args)
         resources.put(path, created)
         createHierarchy(Path(pathElements.init), created, args)
       }
-    }
   }
 }
 
@@ -80,6 +78,6 @@ object ResourceBundleTree {
   def create(resourceComponent: ResourceComponent): ResourceNode = (new ResourceBundleTree).create(resourceComponent)
 }
 
-case class ResourceNodeBuffer(val path: Seq[String], val children: scala.collection.mutable.ListBuffer[ResourceNodeBuffer], var isProperty: Boolean, var args: List[Arg] = Nil) {
+case class ResourceNodeBuffer(path: Seq[String], children: scala.collection.mutable.ListBuffer[ResourceNodeBuffer], var isProperty: Boolean, var args: List[Arg] = Nil) {
   def toResourceNode: ResourceNode = ResourceNode(path, children.toList.map(_.toResourceNode), isProperty, args)
 }

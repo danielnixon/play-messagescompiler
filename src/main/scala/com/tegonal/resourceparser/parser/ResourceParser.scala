@@ -20,13 +20,17 @@
 \*                                                                           */
 package com.tegonal.resourceparser.parser
 
+import sbt.File
+import xsbti.{Maybe, Position, Severity}
+
+import scala.util.matching.Regex
 import scala.util.parsing.combinator._
 
 class ResourceParser extends JavaTokenParsers {
 
   override def skipWhitespace = false
 
-  val ARG = """\{(\d+)\}""".r
+  val ARG: Regex = """\{(\d+)(,\s*\w+)?\}""".r
 
   /**
    * Convenient entry method
@@ -43,7 +47,7 @@ class ResourceParser extends JavaTokenParsers {
    * Comment of the form #comment text
    */
   def comment: Parser[Comment] =
-    "#" ~> """([^\n\r]+)""".r ^^ { case text => Comment(text) }
+    "#" ~> """([^\n\r]+)""".r ^^ (text => Comment(text))
 
   /**
    * Property of the form path=value
@@ -73,7 +77,7 @@ class ResourceParser extends JavaTokenParsers {
    * Extract args with their index
    */
   private def extractArgs(x: String) =
-    (ARG findAllIn x map { case ARG(i) => PropertyValueArg(i.toInt) }).toList
+    (ARG findAllIn x map { case ARG(i, _) => PropertyValueArg(i.toInt) }).toList
 }
 
 object ResourceParser {
@@ -82,7 +86,39 @@ object ResourceParser {
    * @param input multi-line string of the resource file
    * @return the resulting AST if the parsing was successful, else None.
    */
-  def parse(input: String): Option[ResourceBundle] =
-    (new ResourceParser).parse(input).map { Some(_) }.getOrElse(None)
+  def parse(input: String, srcFile: Option[File]): Either[xsbti.Problem, ResourceBundle] = {
+    val parser = new ResourceParser
+    val parseResult = parser.parse(input)
+
+    parseResult match {
+      case parser.Success(r: ResourceBundle, _) => Right(r)
+      case parser.NoSuccess(noSuccessMessage, next) => Left(new xsbti.Problem {
+        override def position(): Position = new Position {
+          override def pointer(): Maybe[Integer] = Maybe.nothing[Integer]
+
+          override def line(): Maybe[Integer] = Maybe.just(next.pos.line)
+
+          override def sourcePath(): Maybe[String] = Maybe.nothing[String]
+
+          override def offset(): Maybe[Integer] = Maybe.just(next.pos.column)
+
+          override def sourceFile(): Maybe[File] = srcFile match {
+            case Some(f) => Maybe.just(f)
+            case None => Maybe.nothing[File]
+          }
+
+          override def pointerSpace(): Maybe[String] = Maybe.nothing[String]
+
+          override def lineContent(): String = next.pos.longString
+        }
+
+        override def category(): String = ""
+
+        override def severity(): Severity = Severity.Error
+
+        override def message(): String = noSuccessMessage
+      })
+    }
+  }
 
 }

@@ -21,7 +21,6 @@
 package com.tegonal.resourceparser.generator
 
 import org.specs2.mutable._
-import com.tegonal.resourceparser.parser.ResourceParser
 
 class ResourceToScalaGeneratorSpec extends Specification {
   val resourceFile = """items.details=Item details
@@ -52,46 +51,56 @@ class ResourceToScalaGeneratorSpec extends Specification {
                    |trait ResourcePath {
                    |  def pathElements: Seq[PathElement]
                    |
-                   |  def resourceString(args: Any*)(implicit lang: Lang) = Messages(pathElements.map(_.identifier).mkString("."), args: _*)
+                   |  def resourceString(args: Any*)(implicit provider: MessagesProvider) = Messages(pathElements.map(_.identifier).mkString("."), args: _*)
                    |
-                   |  override def toString = resourceString()
+                   |  def msg(args: Any*)(implicit provider: MessagesProvider) = resourceString(args)
                    |}
                    |
                    |/**
                    | * implicit conversion from resource path to Messages
                    | */
-                   |implicit def resourcePath2Messages(resourcePath: ResourcePath)(implicit lang: Lang): String =
+                   |implicit def resourcePath2Messages(resourcePath: ResourcePath)(implicit provider: MessagesProvider): String =
                    |  resourcePath.resourceString()
+                   |
                    |
                    |protected case object __Items extends PathElement("items") {
                    |
                    |  def details = __ItemsDetails
                    |
                    |  def list = __ItemsList
+                   |
                    |}
                    |
                    |def items = __Items
                    |
                    |protected case object __ItemsDetails extends PathElement("details") with ResourcePath {
-                   |  def pathElements = __Items :: __ItemsDetails :: Nil
+                   |  def pathElements: Seq[PathElement] = __Items :: __ItemsDetails :: Nil
+                   |
                    |
                    |}
+                   |
                    |
                    |protected case object __ItemsList extends PathElement("list") {
                    |
                    |  def title = __ItemsListTitle
+                   |
                    |}
+                   |
                    |
                    |protected case object __ItemsListTitle extends PathElement("title") with ResourcePath {
-                   |  def pathElements = __Items :: __ItemsList :: __ItemsListTitle :: Nil
+                   |  def pathElements: Seq[PathElement] = __Items :: __ItemsList :: __ItemsListTitle :: Nil
+                   |
                    |
                    |}
+                   |
+                   |
                    |
                    |protected case object __Orders extends PathElement("orders") {
                    |
                    |  def list = __OrdersList
                    |
                    |  def details = __OrdersDetails
+                   |
                    |}
                    |
                    |def orders = __Orders
@@ -99,20 +108,27 @@ class ResourceToScalaGeneratorSpec extends Specification {
                    |protected case object __OrdersList extends PathElement("list") {
                    |
                    |  def title = __OrdersListTitle
+                   |
                    |}
+                   |
                    |
                    |protected case object __OrdersListTitle extends PathElement("title") with ResourcePath {
-                   |  def pathElements = __Orders :: __OrdersList :: __OrdersListTitle :: Nil
+                   |  def pathElements: Seq[PathElement] = __Orders :: __OrdersList :: __OrdersListTitle :: Nil
+                   |
                    |
                    |}
+                   |
                    |
                    |protected case object __OrdersDetails extends PathElement("details") {
                    |
                    |  def title = __OrdersDetailsTitle
+                   |
                    |}
                    |
+                   |
                    |protected case object __OrdersDetailsTitle extends PathElement("title") with ResourcePath {
-                   |  def pathElements = __Orders :: __OrdersDetails :: __OrdersDetailsTitle :: Nil
+                   |  def pathElements: Seq[PathElement] = __Orders :: __OrdersDetails :: __OrdersDetailsTitle :: Nil
+                   |
                    |
                    |}
                    |}""".stripMargin
@@ -132,88 +148,93 @@ class ResourceToScalaGeneratorSpec extends Specification {
                            |trait ResourcePath {
                            |  def pathElements: Seq[PathElement]
                            |
-                           |  def resourceString(args: Any*)(implicit lang: Lang) = Messages(pathElements.map(_.identifier).mkString("."), args: _*)
+                           |  def resourceString(args: Any*)(implicit provider: MessagesProvider) = Messages(pathElements.map(_.identifier).mkString("."), args: _*)
                            |
-                           |  override def toString = resourceString()
+                           |  def msg(args: Any*)(implicit provider: MessagesProvider) = resourceString(args)
                            |}
                            |
                            |/**
                            | * implicit conversion from resource path to Messages
                            | */
-                           |implicit def resourcePath2Messages(resourcePath: ResourcePath)(implicit lang: Lang): String =
+                           |implicit def resourcePath2Messages(resourcePath: ResourcePath)(implicit provider: MessagesProvider): String =
                            |  resourcePath.resourceString()
                            |
+                           |
                            |protected case object __Type extends PathElement("type") with ResourcePath {
-                           |  def pathElements = __Type :: Nil
+                           |  def pathElements: Seq[PathElement] = __Type :: Nil
+                           |
+                           |
                            |}
                            |
                            |def `type` = __Type
                            |
+                           |
                            |}""".stripMargin
 
   val argsExpected = """package com.tegonal.resourceparser
-                           |
-                           |import play.api.i18n._
-                           |import scala.language.implicitConversions
-                           |
-                           |object ResourceBundleImplicits {
-                           |
-                           |/**
-                           | * Definitions
-                           | */
-                           |abstract class PathElement(val identifier: String)
-                           |
-                           |trait ResourcePath {
-                           |  def pathElements: Seq[PathElement]
-                           |
-                           |  def resourceString(args: Any*)(implicit lang: Lang) = Messages(pathElements.map(_.identifier).mkString("."), args: _*)
-                           |
-                           |  override def toString = resourceString()
-                           |}
-                           |
-                           |/**
-                           | * implicit conversion from resource path to Messages
-                           | */
-                           |implicit def resourcePath2Messages(resourcePath: ResourcePath)(implicit lang: Lang): String =
-                           |  resourcePath.resourceString()
-                           |
-                           |protected case object __Home extends PathElement("home") {
-                           |  
-                           |  def title(arg0: Any, arg1: Any) = __HomeTitle(arg0, arg1)
-                           |  
-                           |}
-                           |
-                           |def home = __Home
-                           |
-                           |protected case object __HomeTitle extends PathElement("title") with ResourcePath {
-                           |  def pathElements = __Home :: __HomeTitle :: Nil
-                           |  
-                           |  def apply(arg0: Any, arg1: Any) = resourceString(arg0, arg1)
-                           |}
-                           |
-                           |protected case object __Other extends PathElement("other") with ResourcePath {
-                           |    def pathElements = __Other :: Nil
-                           |
-                           |    def apply(arg0: Any) = resourceString(arg0)
-                           |}
-                           |
-                           |def other(arg0: Any) = __Other(arg0)
-                           |
-                           |}""".stripMargin
+                       |
+                       |import play.api.i18n._
+                       |import scala.language.implicitConversions
+                       |
+                       |object ResourceBundleImplicits {
+                       |
+                       |/**
+                       | * Definitions
+                       | */
+                       |abstract class PathElement(val identifier: String)
+                       |
+                       |trait ResourcePath {
+                       |  def pathElements: Seq[PathElement]
+                       |
+                       |  def resourceString(args: Any*)(implicit provider: MessagesProvider) = Messages(pathElements.map(_.identifier).mkString("."), args: _*)
+                       |
+                       |  def msg(args: Any*)(implicit provider: MessagesProvider) = resourceString(args)
+                       |}
+                       |
+                       |/**
+                       | * implicit conversion from resource path to Messages
+                       | */
+                       |implicit def resourcePath2Messages(resourcePath: ResourcePath)(implicit provider: MessagesProvider): String =
+                       |  resourcePath.resourceString()
+                       |
+                       |protected case object __Home extends PathElement("home") {
+                       |
+                       |  def title(arg0: Any, arg1: Any)(implicit provider: MessagesProvider) = __HomeTitle(arg0, arg1)
+                       |
+                       |}
+                       |
+                       |def home = __Home
+                       |
+                       |protected case object __HomeTitle extends PathElement("title") with ResourcePath {
+                       |  def pathElements: Seq[PathElement] = __Home :: __HomeTitle :: Nil
+                       |
+                       |  def apply(arg0: Any, arg1: Any)(implicit provider: MessagesProvider) = resourceString(arg0, arg1)
+                       |}
+                       |
+                       |protected case object __Other extends PathElement("other") with ResourcePath {
+                       |  def pathElements: Seq[PathElement] = __Other :: Nil
+                       |
+                       |  def apply(arg0: Any)(implicit provider: MessagesProvider) = resourceString(arg0)
+                       |}
+                       |
+                       |def other(arg0: Any)(implicit provider: MessagesProvider) = __Other(arg0)
+                       |
+                       |
+                       |}""".stripMargin
 
   "The generator" should {
     "generate Scala source code" in {
-      val result = ResourceToScalaGenerator.generateSource(resourceFile).get
+      val result = ResourceToScalaGenerator.generateSource(resourceFile, None).right.toOption.get
       result.replaceAll("""[\n|\s]""", "") === expected.replaceAll("""[\n|\s]""", "")
     }
 
     "generate Scala keyword safe code" in {
-      val result = ResourceToScalaGenerator.generateSource(keywordsResourceFile).get
+      val result = ResourceToScalaGenerator.generateSource(keywordsResourceFile, None).right.toOption.get
       result.replaceAll("""[\n|\s]""", "") === keywordsExpected.replaceAll("""[\n|\s]""", "")
     }
 
     "generate Scala code with arguments" in {
-      val result = ResourceToScalaGenerator.generateSource(resourceFileWithArgs).get
+      val result = ResourceToScalaGenerator.generateSource(resourceFileWithArgs, None).right.toOption.get
       result.replaceAll("""[\n|\s]""", "") === argsExpected.replaceAll("""[\n|\s]""", "")
     }
   }
