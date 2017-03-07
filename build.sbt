@@ -2,17 +2,36 @@ sbtPlugin := true
 
 name := "play-messagescompiler"
 
-organization := "com.tegonal"
+organization := "org.danielnixon"
 
 version := "1.0.7-SNAPSHOT"
 
 description := "SBT plugin for compiled messages resources in Play 2.6"
 
-resolvers ++= Seq("snapshots", "releases").map(Resolver.sonatypeRepo)
-
-resolvers ++= Seq(
-  Resolver.url("Typesafe repository", url("http://repo.typesafe.com/typesafe/releases/"))(Resolver.ivyStylePatterns),
-  "Typesafe Releases Maven " at "http://repo.typesafe.com/typesafe/releases/")
+licenses := Seq("GNU General Public License (GPL), Version 3" -> url("http://www.gnu.org/licenses/gpl.txt"))
+publishMavenStyle := true
+publishArtifact in Test := false
+publishTo := {
+  val nexus = "https://oss.sonatype.org/"
+  if (isSnapshot.value)
+    Some("snapshots" at nexus + "content/repositories/snapshots")
+  else
+    Some("releases"  at nexus + "service/local/staging/deploy/maven2")
+}
+homepage := Some(url("https://github.com/danielnixon/play-messagescompiler"))
+pomExtra := {
+  <scm>
+    <url>git@github.com:danielnixon/play-messagescompiler.git</url>
+    <connection>scm:git:git@github.com:danielnixon/play-messagescompiler.git</connection>
+  </scm>
+    <developers>
+      <developer>
+        <id>danielnixon</id>
+        <name>Daniel Nixon</name>
+        <url>https://danielnixon.org/</url>
+      </developer>
+    </developers>
+}
 
 addSbtPlugin("com.typesafe.play" % "sbt-plugin" % "2.6.0-M1")
 
