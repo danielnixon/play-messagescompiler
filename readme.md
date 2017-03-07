@@ -15,9 +15,7 @@ Using the generated key literals saves the trouble of misspelt keys that lead to
 
 Add the following to `project/plugins.sbt`:
 
-    resolvers += "Tegonal releases" at "https://github.com/tegonal/tegonal-mvn/raw/master/releases/"
-
-    addSbtPlugin("com.tegonal" % "play-messagescompiler" % "1.0.4")
+    addSbtPlugin("org.danielnixon" % "play-messagescompiler" % "1.0.7")
 
 ## Usage
 
