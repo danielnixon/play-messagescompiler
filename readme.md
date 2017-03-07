@@ -2,6 +2,12 @@
 
 [![Build Status](https://travis-ci.org/danielnixon/play-messagescompiler.svg?branch=master)](https://travis-ci.org/danielnixon/play-messagescompiler)
 
+## Versions
+
+| play-messagescompiler version | Play version       |
+|-------------------------------|--------------------|
+| 1.0.7                         | 2.6.0-M1           |
+
 ## About
 
 This humble Play plugin provides type safety for the project's messages. It adds key literals instead of using strings to reference a property.
