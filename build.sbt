@@ -4,7 +4,7 @@ name := "play-messagescompiler"
 
 organization := "com.tegonal"
 
-version := "1.0.6"
+version := "1.0.7-SNAPSHOT"
 
 description := "SBT plugin for compiled messages resources in Play 2.2"
 
