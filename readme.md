@@ -1,12 +1,13 @@
 # play-messagescompiler - Messages compiler for Play 2 Scala
 
 [![Build Status](https://travis-ci.org/danielnixon/play-messagescompiler.svg?branch=master)](https://travis-ci.org/danielnixon/play-messagescompiler)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.danielnixon/play-messagescompiler/badge.svg)](https://maven-badges.herokuapp.com/maven-central/org.danielnixon/play-messagescompiler)
 
 ## Versions
 
 | play-messagescompiler version | Play version       |
 |-------------------------------|--------------------|
-| 1.0.7                         | 2.6.0-M1           |
+| 1.0.8                         | 2.6.0-M1           |
 
 ## About
 
