@@ -41,33 +41,76 @@ object ResourceToScalaGenerator {
     }
   }
 
-  def generate(resourceNode: ResourceNode): String = resourceNode match {
+  private def generate(resourceNode: ResourceNode): String = resourceNode match {
     case ResourceNode(Nil, children, false, _) => children.map(generate).mkString("\n")
 
     case ResourceNode(path, children, isProperty, args) => createNodeCode(path, children, isProperty, args)
   }
 
-  def createNodeCode(path: Seq[String], children: List[ResourceNode], isProperty: Boolean, args: List[Arg]): String = {
-    s"""protected case object __${path.map { _.capitalize }.mkString} extends PathElement("${path.last}")${if (isProperty) " with ResourcePath" else ""} {
-       |  ${if (isProperty) "def pathElements: Seq[PathElement] = " + path.zipWithIndex.map { case (p, i) => "__" + (0 to i).toList.map(path(_).capitalize).mkString }.mkString(" :: ") + " :: Nil" else ""}
-       |  ${children.map { c => "def " + escapeReservedWord(c.path.last) + argumentList(args) + { if(args.nonEmpty) "(implicit provider: MessagesProvider)" else "" } + " = __" + c.path.map { _.capitalize }.mkString + parameterList(args) }.mkString("\n\n  ")}
-       |  ${if (args.nonEmpty && isProperty) "def apply" + argumentList(args) + "(implicit provider: MessagesProvider) = resourceString" + parameterList(args) else ""}
-       |}
-       |${
-      path match {
-        case p :: Nil => "\ndef " + escapeReservedWord(p) + { if (args.nonEmpty && isProperty) argumentList(args) + "(implicit provider: MessagesProvider)" else "" } + " = __" + p.capitalize + { if (isProperty) parameterList(args) else "" }
-        case _ => ""
-      }
-    }
+  private def createNodeCode(path: Seq[String], children: List[ResourceNode], isProperty: Boolean, args: List[Arg]): String = {
+
+    val caseObject = s"""
+       |protected case object ${objectName(path)} extends PathElement("${path.last}")${if (isProperty) " with ResourcePath" else ""} {
+       |  ${pathElements(path, isProperty)}
        |
-       |${children.map(generate).mkString}""".stripMargin
+       |  ${childDefs(children)}
+       |
+       |  ${applyMethod(isProperty, args)}
+       |}
+       |""".stripMargin
+
+    val topLevelDef = path match {
+      case p :: Nil =>
+        if (isProperty && children.isEmpty) {
+          "def " + escapeReservedWord(p) + argumentList(args) + ": String = " + objectName(p) + parameterList(args)
+        } else {
+          s"val ${escapeReservedWord(p)} = ${objectName(p)}"
+        }
+      case _ => ""
+    }
+
+    s"""
+       |$caseObject
+       |$topLevelDef
+       |${children.map(generate).mkString}
+       |""".stripMargin
   }
 
-  private def argumentList(args: List[Arg], param: String = ": Any") =
-    if (args.isEmpty) "" else s"(${args map (a => s"arg${a.index}$param") mkString (", ")})"
+  private def pathElements(path: Seq[String], isProperty: Boolean) = {
+    if (isProperty)
+      "def pathElements: Seq[PathElement] = " + path.zipWithIndex.map { case (p, i) => "__" + (0 to i).toList.map(path(_).capitalize).mkString }.mkString(" :: ") + " :: Nil"
+    else
+      ""
+  }
+
+  private def childDefs(children: List[ResourceNode]) = {
+    val defs = children.map { c =>
+      if (c.isProperty && c.children.isEmpty) {
+        "def " + escapeReservedWord(c.path.last) + argumentList(c.args) + ": String = " + objectName(c.path) + parameterList(c.args)
+      } else {
+        s"val ${escapeReservedWord(c.path.last)} = ${objectName(c.path)}"
+      }
+    }
+
+    defs.mkString("\n\n  ")
+  }
+
+  private def applyMethod(isProperty: Boolean, args: List[Arg]) = {
+    if (isProperty)
+      "def apply" + argumentList(args) + ": String = resourceString" + parameterList(args)
+    else
+      ""
+  }
+
+  private def objectName(path: Seq[String]): String = objectName(path.map(_.capitalize).mkString)
+
+  private def objectName(path: String): String = "__" + path.capitalize
+
+  private def argumentList(args: List[Arg], param: String = ": Any", implicits: String = "(implicit provider: MessagesProvider)") =
+    s"(${args map (a => s"arg${a.index}$param") mkString (", ")})$implicits"
 
   private def parameterList(args: List[Arg]) =
-    argumentList(args, "")
+    argumentList(args, "", "")
 
   def open(packageName: String, objectName: String): String = s"""package $packageName
                 |
@@ -77,8 +120,8 @@ object ResourceToScalaGenerator {
                 |object $objectName {
                 |
                 |/**
-                | * Definitions
-                | */
+                |  * Definitions
+                |  */
                 |abstract class PathElement(val identifier: String)
                 |
                 |trait ResourcePath {
@@ -90,9 +133,9 @@ object ResourceToScalaGenerator {
                 |}
                 |
                 |/**
-                | * implicit conversion from resource path to Messages
-                | */
-                |implicit def resourcePath2Messages(resourcePath: ResourcePath)(implicit provider: MessagesProvider): String =
+                |  * implicit conversion from resource path to String
+                |  */
+                |implicit def resourcePath2String(resourcePath: ResourcePath)(implicit provider: MessagesProvider): String =
                 |  resourcePath.resourceString()
                 |
                 |""".stripMargin

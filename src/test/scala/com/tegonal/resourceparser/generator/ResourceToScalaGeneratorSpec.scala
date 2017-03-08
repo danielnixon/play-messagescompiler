@@ -44,8 +44,8 @@ class ResourceToScalaGeneratorSpec extends Specification {
                    |object ResourceBundleImplicits {
                    |
                    |/**
-                   | * Definitions
-                   | */
+                   |  * Definitions
+                   |  */
                    |abstract class PathElement(val identifier: String)
                    |
                    |trait ResourcePath {
@@ -57,81 +57,128 @@ class ResourceToScalaGeneratorSpec extends Specification {
                    |}
                    |
                    |/**
-                   | * implicit conversion from resource path to Messages
-                   | */
-                   |implicit def resourcePath2Messages(resourcePath: ResourcePath)(implicit provider: MessagesProvider): String =
+                   |  * implicit conversion from resource path to String
+                   |  */
+                   |implicit def resourcePath2String(resourcePath: ResourcePath)(implicit provider: MessagesProvider): String =
                    |  resourcePath.resourceString()
+                   |
+                   |
                    |
                    |
                    |protected case object __Items extends PathElement("items") {
                    |
-                   |  def details = __ItemsDetails
                    |
-                   |  def list = __ItemsList
+                   |  def details()(implicit provider: MessagesProvider): String = __ItemsDetails()
+                   |
+                   |  val list = __ItemsList
+                   |
                    |
                    |}
                    |
-                   |def items = __Items
+                   |val items = __Items
+                   |
                    |
                    |protected case object __ItemsDetails extends PathElement("details") with ResourcePath {
                    |  def pathElements: Seq[PathElement] = __Items :: __ItemsDetails :: Nil
                    |
                    |
+                   |
+                   |  def apply()(implicit provider: MessagesProvider): String = resourceString()
                    |}
+                   |
+                   |
+                   |
                    |
                    |
                    |protected case object __ItemsList extends PathElement("list") {
                    |
-                   |  def title = __ItemsListTitle
+                   |
+                   |  def title()(implicit provider: MessagesProvider): String = __ItemsListTitle()
+                   |
                    |
                    |}
+                   |
+                   |
                    |
                    |
                    |protected case object __ItemsListTitle extends PathElement("title") with ResourcePath {
                    |  def pathElements: Seq[PathElement] = __Items :: __ItemsList :: __ItemsListTitle :: Nil
                    |
                    |
+                   |
+                   |  def apply()(implicit provider: MessagesProvider): String = resourceString()
                    |}
+                   |
+                   |
+                   |
+                   |
+                   |
                    |
                    |
                    |
                    |protected case object __Orders extends PathElement("orders") {
                    |
-                   |  def list = __OrdersList
                    |
-                   |  def details = __OrdersDetails
+                   |  val list = __OrdersList
+                   |
+                   |  val details = __OrdersDetails
+                   |
                    |
                    |}
                    |
-                   |def orders = __Orders
+                   |val orders = __Orders
+                   |
                    |
                    |protected case object __OrdersList extends PathElement("list") {
                    |
-                   |  def title = __OrdersListTitle
+                   |
+                   |  def title()(implicit provider: MessagesProvider): String = __OrdersListTitle()
+                   |
                    |
                    |}
+                   |
+                   |
                    |
                    |
                    |protected case object __OrdersListTitle extends PathElement("title") with ResourcePath {
                    |  def pathElements: Seq[PathElement] = __Orders :: __OrdersList :: __OrdersListTitle :: Nil
                    |
                    |
+                   |
+                   |  def apply()(implicit provider: MessagesProvider): String = resourceString()
                    |}
+                   |
+                   |
+                   |
+                   |
                    |
                    |
                    |protected case object __OrdersDetails extends PathElement("details") {
                    |
-                   |  def title = __OrdersDetailsTitle
+                   |
+                   |  def title()(implicit provider: MessagesProvider): String = __OrdersDetailsTitle()
+                   |
                    |
                    |}
+                   |
+                   |
                    |
                    |
                    |protected case object __OrdersDetailsTitle extends PathElement("title") with ResourcePath {
                    |  def pathElements: Seq[PathElement] = __Orders :: __OrdersDetails :: __OrdersDetailsTitle :: Nil
                    |
                    |
+                   |
+                   |  def apply()(implicit provider: MessagesProvider): String = resourceString()
                    |}
-                   |}""".stripMargin
+                   |
+                   |
+                   |
+                   |
+                   |
+                   |
+                   |}
+                   |""".stripMargin
 
   val keywordsExpected = """package com.tegonal.resourceparser
                            |
@@ -141,8 +188,8 @@ class ResourceToScalaGeneratorSpec extends Specification {
                            |object ResourceBundleImplicits {
                            |
                            |/**
-                           | * Definitions
-                           | */
+                           |  * Definitions
+                           |  */
                            |abstract class PathElement(val identifier: String)
                            |
                            |trait ResourcePath {
@@ -154,19 +201,23 @@ class ResourceToScalaGeneratorSpec extends Specification {
                            |}
                            |
                            |/**
-                           | * implicit conversion from resource path to Messages
-                           | */
-                           |implicit def resourcePath2Messages(resourcePath: ResourcePath)(implicit provider: MessagesProvider): String =
+                           |  * implicit conversion from resource path to String
+                           |  */
+                           |implicit def resourcePath2String(resourcePath: ResourcePath)(implicit provider: MessagesProvider): String =
                            |  resourcePath.resourceString()
+                           |
+                           |
                            |
                            |
                            |protected case object __Type extends PathElement("type") with ResourcePath {
                            |  def pathElements: Seq[PathElement] = __Type :: Nil
                            |
                            |
+                           |
+                           |  def apply()(implicit provider: MessagesProvider): String = resourceString()
                            |}
                            |
-                           |def `type` = __Type
+                           |def `type`()(implicit provider: MessagesProvider): String = __Type()
                            |
                            |
                            |}""".stripMargin
@@ -179,8 +230,8 @@ class ResourceToScalaGeneratorSpec extends Specification {
                        |object ResourceBundleImplicits {
                        |
                        |/**
-                       | * Definitions
-                       | */
+                       |  * Definitions
+                       |  */
                        |abstract class PathElement(val identifier: String)
                        |
                        |trait ResourcePath {
@@ -192,32 +243,48 @@ class ResourceToScalaGeneratorSpec extends Specification {
                        |}
                        |
                        |/**
-                       | * implicit conversion from resource path to Messages
-                       | */
-                       |implicit def resourcePath2Messages(resourcePath: ResourcePath)(implicit provider: MessagesProvider): String =
+                       |  * implicit conversion from resource path to String
+                       |  */
+                       |implicit def resourcePath2String(resourcePath: ResourcePath)(implicit provider: MessagesProvider): String =
                        |  resourcePath.resourceString()
+                       |
+                       |
+                       |
                        |
                        |protected case object __Home extends PathElement("home") {
                        |
-                       |  def title(arg0: Any, arg1: Any)(implicit provider: MessagesProvider) = __HomeTitle(arg0, arg1)
+                       |
+                       |  def title(arg0: Any, arg1: Any)(implicit provider: MessagesProvider): String = __HomeTitle(arg0, arg1)
+                       |
                        |
                        |}
                        |
-                       |def home = __Home
+                       |val home = __Home
+                       |
                        |
                        |protected case object __HomeTitle extends PathElement("title") with ResourcePath {
                        |  def pathElements: Seq[PathElement] = __Home :: __HomeTitle :: Nil
                        |
-                       |  def apply(arg0: Any, arg1: Any)(implicit provider: MessagesProvider) = resourceString(arg0, arg1)
+                       |
+                       |
+                       |  def apply(arg0: Any, arg1: Any)(implicit provider: MessagesProvider): String = resourceString(arg0, arg1)
                        |}
+                       |
+                       |
+                       |
+                       |
+                       |
+                       |
                        |
                        |protected case object __Other extends PathElement("other") with ResourcePath {
                        |  def pathElements: Seq[PathElement] = __Other :: Nil
                        |
-                       |  def apply(arg0: Any)(implicit provider: MessagesProvider) = resourceString(arg0)
+                       |
+                       |
+                       |  def apply(arg0: Any)(implicit provider: MessagesProvider): String = resourceString(arg0)
                        |}
                        |
-                       |def other(arg0: Any)(implicit provider: MessagesProvider) = __Other(arg0)
+                       |def other(arg0: Any)(implicit provider: MessagesProvider): String = __Other(arg0)
                        |
                        |
                        |}""".stripMargin
