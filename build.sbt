@@ -4,7 +4,7 @@ name := "play-messagescompiler"
 
 organization := "org.danielnixon"
 
-version := "1.0.8"
+version := "1.0.9-SNAPSHOT"
 
 description := "SBT plugin for compiled messages resources in Play 2.6"
 
