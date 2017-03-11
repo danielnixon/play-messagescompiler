@@ -24,9 +24,11 @@ import java.io.File
 import com.tegonal.resourceparser.generator._
 import play.sbt.PlayExceptions._
 
+import scala.io.Codec
+
 object MessagesCompiler {
   def compile(src: File, options: Seq[String]): (String, Option[String], Seq[File]) = {
-    val messages = scala.io.Source.fromFile(src).mkString
+    val messages = scala.io.Source.fromFile(src)(Codec.UTF8).mkString
 
     val generatedSource = ResourceToScalaGenerator.generateSource(messages, Some(src), "conf", "messages") match {
       case Left(problem) => throw CompilationException(problem)
