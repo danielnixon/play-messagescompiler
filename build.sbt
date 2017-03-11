@@ -36,7 +36,7 @@ pomExtra := {
 addSbtPlugin("com.typesafe.play" % "sbt-plugin" % "2.6.0-M2")
 
 libraryDependencies ++= Seq(
-    "org.specs2" %% "specs2-core" % "3.8.8" % Test
+    "org.specs2" %% "specs2-core" % "3.8.9" % Test
   )
 
 scalacOptions += "-deprecation"
